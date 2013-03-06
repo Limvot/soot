@@ -178,7 +178,7 @@ public class SourceLocator
 		List<String> classes = new ArrayList<String>();
 
 		if (isArchive(aPath)) {
-			List inputExtensions = new ArrayList(2);
+			List<String> inputExtensions = new ArrayList<String>(2);
 			inputExtensions.add(".class");
 			inputExtensions.add(".jimple");
 			inputExtensions.add(".java");
