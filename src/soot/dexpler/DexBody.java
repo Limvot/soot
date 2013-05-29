@@ -52,7 +52,6 @@ import soot.Body;
 import soot.Local;
 import soot.Modifier;
 import soot.NullType;
-import soot.PackManager;
 import soot.PrimType;
 import soot.RefType;
 import soot.Scene;
@@ -78,10 +77,14 @@ import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
 import soot.jimple.NullConstant;
 import soot.jimple.internal.JIdentityStmt;
+import soot.jimple.toolkits.base.Aggregator;
+import soot.jimple.toolkits.scalar.CopyPropagator;
 import soot.jimple.toolkits.scalar.DeadAssignmentEliminator;
 import soot.jimple.toolkits.scalar.LocalNameStandardizer;
+import soot.jimple.toolkits.scalar.NopEliminator;
 import soot.jimple.toolkits.scalar.UnreachableCodeEliminator;
 import soot.jimple.toolkits.typing.TypeAssigner;
+import soot.toolkits.exceptions.TrapTightener;
 import soot.toolkits.scalar.LocalPacker;
 import soot.toolkits.scalar.LocalSplitter;
 import soot.toolkits.scalar.UnusedLocalEliminator;
@@ -115,9 +118,7 @@ public class DexBody  {
     private TryItem[] tries;
 
     private RefType declaringClassType;
-    
-    private static LocalSplitter splitter; 
-    
+        
     // detect array/instructions overlapping obfuscation
     private ArrayList<PseudoInstruction> pseudoInstructionData = new ArrayList<PseudoInstruction>();
     private DexFile dexFile = null;
@@ -472,13 +473,13 @@ public class DexBody  {
         Debug.printDbg("\nbefore splitting");
         Debug.printDbg("",(Body)jBody);
         
-        splitLocals();
+        getLocalSplitter().transform(jBody);
         
         Debug.printDbg("\nafter splitting");
         Debug.printDbg("",(Body)jBody);
-               
-        for (RetypeableInstruction i : instructionsToRetype)
-            i.retype();
+        
+  		for (RetypeableInstruction i : instructionsToRetype)
+            i.retype(jBody);
         
         {
           // remove instructions from instructions list
@@ -577,9 +578,23 @@ public class DexBody  {
         Debug.printDbg("\nafter type assigner localpacker and name standardizer");
         Debug.printDbg("",(Body)jBody);
         
-        PackManager.v().getPack("jb").apply(jBody);
-        
-        
+        // Inline PackManager.v().getPack("jb").apply(jBody);
+        // Keep only transformations that have not been done
+        // at this point.
+        TrapTightener.v().transform(jBody);
+        //LocalSplitter.v().transform(jBody);
+        Aggregator.v().transform(jBody);
+        //UnusedLocalEliminator.v().transform(jBody);
+        //TypeAssigner.v().transform(jBody);
+        //LocalPacker.v().transform(jBody);
+        //LocalNameStandardizer.v().transform(jBody);
+        CopyPropagator.v().transform(jBody);
+        //DeadAssignmentEliminator.v().transform(jBody);
+        //UnusedLocalEliminator.v().transform(jBody);
+        //LocalPacker.v().transform(jBody);
+        NopEliminator.v().transform(jBody);
+        //UnreachableCodeEliminator.v().transform(jBody);
+       
         for (Unit u: jBody.getUnits()) {
           if (u instanceof AssignStmt) {
             AssignStmt ass = (AssignStmt)u;
@@ -605,12 +620,13 @@ public class DexBody  {
 
         return jBody;
     }
-
-	private void splitLocals() {
-		if(splitter==null)
-        	splitter = new LocalSplitter(new DalvikThrowAnalysis());
-        splitter.transform(jBody);
-	}
+    
+    private LocalSplitter localSplitter = null;
+    protected LocalSplitter getLocalSplitter() {
+    	if (this.localSplitter == null)
+    		this.localSplitter = new LocalSplitter(DalvikThrowAnalysis.v());
+    	return this.localSplitter;
+    }
 
     /**
      * Set a dangling instruction for this body.
