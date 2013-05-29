@@ -115,13 +115,8 @@ public class LocalSplitter extends BodyTransformer
             Set<ValueBox> markedBoxes = new HashSet<ValueBox>();
             Map<ValueBox, Unit> boxToUnit = new HashMap<ValueBox, Unit>(units.size() * 2 + 1, 0.7f);
             
-            Iterator<Unit> codeIt = units.iterator();
-
-
-            while(codeIt.hasNext())
+            for (Unit s : units)
             {
-                Unit s = (Unit) codeIt.next();
-                
                 if (s.getDefBoxes().size() > 1)
                     throw new RuntimeException("stmt with more than 1 defbox!");
                 if (s.getDefBoxes().size() < 1)

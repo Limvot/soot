@@ -214,13 +214,14 @@ public class Util
                 }
 		    }
         }
-    
+        
+        
         // Add every method to the bclass
         for(int i = 0; i < coffiClass.methods_count; i++){
             
             method_info methodInfo = coffiClass.methods[i];
 		
-		
+        
 		    if( (coffiClass.constant_pool[methodInfo.name_index]) == null) {
 		        G.v().out.println("method index: " + methodInfo.toName(coffiClass.constant_pool));
 		        throw new RuntimeException("method has no name");
@@ -228,7 +229,7 @@ public class Util
 
             String methodName = ((CONSTANT_Utf8_info)(coffiClass.constant_pool[methodInfo.name_index])).convert();
 		    String methodDescriptor = ((CONSTANT_Utf8_info)(coffiClass.constant_pool[methodInfo.descriptor_index])).convert();
-    
+		    
             List parameterTypes;
             Type returnType;
     

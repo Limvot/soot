@@ -24,6 +24,7 @@ import heros.SynchronizedBy;
 import heros.ThreadSafe;
 import heros.solver.IDESolver;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -35,10 +36,12 @@ import soot.Body;
 import soot.MethodOrMethodContext;
 import soot.PatchingChain;
 import soot.Scene;
+import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.UnitBox;
 import soot.jimple.Stmt;
+import soot.jimple.toolkits.annotation.logic.Loop;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
 import soot.jimple.toolkits.callgraph.EdgePredicate;
@@ -46,6 +49,7 @@ import soot.jimple.toolkits.callgraph.Filter;
 import soot.toolkits.exceptions.UnitThrowAnalysis;
 import soot.toolkits.graph.DirectedGraph;
 import soot.toolkits.graph.ExceptionalUnitGraph;
+import soot.toolkits.graph.LoopNestTree;
 
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -250,4 +254,43 @@ public class JimpleBasedInterproceduralCFG implements InterproceduralCFG<Unit,So
 		}
 		return false;
 	}
+
+	/**
+	 * Checks whether the given statement is part of this CFG.
+	 * @param u The statement to check
+	 * @return True if the given statement is part of this CFG, otherwise
+	 * false
+	 */
+	public boolean containsStmt(Unit u) {
+		return this.unitToOwner.containsKey(u);
+	}
+	
+	/**
+	 * Gets all classes that contain methods in this cfg
+	 * @return All classes that can contain methods in this cfg
+	 */
+	public Collection<SootClass> getAllClasses() {
+		return Scene.v().getClasses();
+	}
+	
+	/**
+	 * Gets the start point of the outermost loop containing the given
+	 * statement. This functions only considers intraprocedural loops.
+	 * @param stmt The statement for which to get the loop start point.
+	 * @return The start point of the outermost loop containing the given
+	 * statement, or NULL if the given statement is not contained in a
+	 * loop.
+	 */
+	public Unit getLoopStartPointFor(Unit stmt) {
+		Body body = this.unitToOwner.get(stmt);
+		assert body != null;
+		LoopNestTree loopTree = new LoopNestTree(body);
+		Unit loopHead = null;
+		for (Loop loop : loopTree) {
+			if (loop.getLoopStatements().contains(stmt))
+				loopHead = loop.getHead();
+		}
+		return loopHead;
+	}
+
 }

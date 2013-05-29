@@ -46,7 +46,7 @@ public class CoffiMethodSource implements MethodSource
     {
         JimpleBody jb = Jimple.v().newBody(m);
         
-        Map options = PhaseOptions.v().getPhaseOptions(phaseName);
+	    Map options = PhaseOptions.v().getPhaseOptions(phaseName);
         boolean useOriginalNames = PhaseOptions.getBoolean(options, "use-original-names");
 
         if(useOriginalNames)
@@ -113,6 +113,9 @@ public class CoffiMethodSource implements MethodSource
 
          coffiMethod = null;
          coffiClass = null;
+   
+         if (m.getSignature().equals("<org.junit.runners.model.TestClass: void <init>(java.lang.Class)>"))
+        	 System.out.println("x");
          
          PackManager.v().getPack("jb").apply(jb);
          return jb;
