@@ -481,6 +481,7 @@ public class TypeResolver
 		
 		units.toArray(stmts);
 		
+		int localIdx = 0;
 		for ( Stmt stmt : stmts )
 		{
 			if ( stmt instanceof InvokeStmt )
@@ -516,7 +517,8 @@ public class TypeResolver
 								{
 									Local newlocal = Jimple.v().newLocal(
 										"tmp", null);
-									newlocal.setName("tmp$" + System.identityHashCode(newlocal));
+									localIdx = getUnusedTmpLocalIdx(localIdx++);
+									newlocal.setName("tmp$" + localIdx);
 									this.jb.getLocals().add(newlocal);
 									
 									special.setBase(newlocal);
@@ -537,5 +539,19 @@ public class TypeResolver
 				}
 			}
 		}
+	}
+
+	private int getUnusedTmpLocalIdx(int startIdx) {
+		int localIdx = startIdx;
+		boolean changed = true;
+		while (changed) {
+			changed = false;
+			for (Local l : this.jb.getLocals())
+				if (l.getName().equals("tmp$" + localIdx)) {
+					changed = true;
+					localIdx++;
+				}
+		}
+		return localIdx;
 	}
 }
