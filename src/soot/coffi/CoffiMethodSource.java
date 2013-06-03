@@ -114,9 +114,6 @@ public class CoffiMethodSource implements MethodSource
          coffiMethod = null;
          coffiClass = null;
    
-         if (m.getSignature().equals("<org.junit.runners.model.TestClass: void <init>(java.lang.Class)>"))
-        	 System.out.println("x");
-         
          PackManager.v().getPack("jb").apply(jb);
          return jb;
     }
