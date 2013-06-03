@@ -35,6 +35,12 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 	protected final SceneDiff sceneDiff = new SceneDiff();
 	
 	public UpdatableJimpleBasedInterproceduralCFG() {
+		super();
+		this.sceneDiff.fullBuild();
+	}
+
+	public UpdatableJimpleBasedInterproceduralCFG(int capacity) {
+		super(capacity);
 		this.sceneDiff.fullBuild();
 	}
 
@@ -72,7 +78,7 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 				if (DEBUG)
 					System.out.println("Removed class: " + cd.getOldClass().getName());
 				for (SootMethod sm : cd.getOldClass().getMethods())
-					if (sm.isConcrete())
+					if (sm.isConcrete() && sm.hasActiveBody())
 						for (Unit u : sm.getActiveBody().getUnits()) {
 							// Since we're running on the old CFG, we must still
 							// have the statement
