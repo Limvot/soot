@@ -6,7 +6,6 @@ import heros.flowfunc.Identity;
 import heros.flowfunc.KillAll;
 import heros.incremental.UpdatableInterproceduralCFG;
 import heros.incremental.UpdatableWrapper;
-import heros.template.DefaultIFDSTabulationProblem;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -25,14 +24,15 @@ import soot.jimple.Jimple;
 import soot.jimple.ReturnStmt;
 import soot.jimple.ReturnVoidStmt;
 import soot.jimple.Stmt;
+import soot.jimple.toolkits.ide.DefaultUpdatableJimpleIFDSTabulationProblem;
 import soot.toolkits.scalar.Pair;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
-public class IFDSReachingDefinitions extends DefaultIFDSTabulationProblem
-		<UpdatableWrapper<Unit>, UpdatableReachingDefinition, UpdatableWrapper<SootMethod>, UpdatableInterproceduralCFG<Unit, SootMethod>> {
+public class IFDSReachingDefinitions extends DefaultUpdatableJimpleIFDSTabulationProblem
+		<UpdatableReachingDefinition, UpdatableInterproceduralCFG<Unit, SootMethod>> {
 	
 	private static final UpdatableReachingDefinition zeroValue = UpdatableReachingDefinition.zero;
 	private final LoadingCache<Pair<UpdatableWrapper<Value>, Set<UpdatableWrapper<DefinitionStmt>>>,

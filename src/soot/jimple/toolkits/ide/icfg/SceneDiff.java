@@ -102,6 +102,8 @@ public class SceneDiff {
 				(Scene.v().getCallGraph(), eps.iterator()/*, new EdgeFilter()*/);
 		reachableMethods.update();
 
+		ProgramDiffNode programDiff = new ProgramDiffNode(classNameToClass);
+
 		// Collect all new classes and their respective methods
 		Map<String, SootClass> newClassNameToClass = new HashMap<String, SootClass>
 				(classNameToClass.size());
@@ -115,19 +117,27 @@ public class SceneDiff {
 				if (oldClass != null && oldClass != c)
 					throw new RuntimeException("Class name inconsistency");
 				newReachableMethods.add(m);
+				
+				// check for added classes
+				if (!classNameToClass.containsKey(c.getName())) {
+					ClassDiffNode cd = new ClassDiffNode(null, c, DiffType.ADDED);
+					for (SootMethod sm : c.getMethods())
+						if (newReachableMethods.contains(sm))
+							cd.addMethodDiff(new MethodDiffNode(null, sm, DiffType.ADDED));
+					programDiff.addDiffNode(cd);
+				}
 			}
 		}
-
-		ProgramDiffNode programDiff = new ProgramDiffNode(classNameToClass);
 		
-		// check for added classes
-		for (SootClass newClass : newClassNameToClass.values())
-			if (!classNameToClass.containsKey(newClass.getName()))
-				programDiff.addDiffNode(new ClassDiffNode(null, newClass, DiffType.ADDED));
 		for (SootClass oldClass : classNameToClass.values()) {
 			// check for removed classes
-			if (!newClassNameToClass.containsKey(oldClass.getName()))
-				programDiff.addDiffNode(new ClassDiffNode(oldClass, null, DiffType.REMOVED));
+			if (!newClassNameToClass.containsKey(oldClass.getName())) {
+				ClassDiffNode cd = new ClassDiffNode(oldClass, null, DiffType.REMOVED);
+				for (SootMethod sm : oldClass.getMethods())
+					if (oldReachableMethods.contains(sm))
+						cd.addMethodDiff(new MethodDiffNode(sm, null, DiffType.REMOVED));
+				programDiff.addDiffNode(cd);
+			}
 			else {
 				// check changed classes
 				SootClass newClass = newClassNameToClass.get(oldClass.getName());
@@ -416,6 +426,7 @@ public class SceneDiff {
 		 * @param n the node to add
 		 */
 		private void addDiffNode(ClassDiffNode n) {
+			assert n.validate();
 			diffClasses.add(n);
 		}
 
@@ -702,6 +713,16 @@ public class SceneDiff {
 				buff.append("\n");
 			}
 			return buff.toString();
+		}
+		
+		public boolean validate() {
+			if (getDiffType() == DiffType.ADDED) {
+				if (newClass == null)
+					return false;
+				if (!Scene.v().containsClass(newClass.getName()))
+					return false;
+			}
+			return true;
 		}
 	}
 

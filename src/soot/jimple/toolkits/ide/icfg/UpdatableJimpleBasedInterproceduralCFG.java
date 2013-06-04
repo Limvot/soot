@@ -77,26 +77,30 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 			if (cd.getDiffType() == DiffType.REMOVED) {
 				if (DEBUG)
 					System.out.println("Removed class: " + cd.getOldClass().getName());
-				for (SootMethod sm : cd.getOldClass().getMethods())
-					if (sm.isConcrete() && sm.hasActiveBody())
-						for (Unit u : sm.getActiveBody().getUnits()) {
-							// Since we're running on the old CFG, we must still
-							// have the statement
-							assert this.containsStmt(u);
-							expiredNodes.add(wrap(u));
-						}
+				for (MethodDiffNode md : cd.getMethodDiffs()) {
+					assert md.getDiffType() == DiffType.REMOVED;
+					assert md.getOldMethod() != null;
+					for (Unit u : md.getOldMethod().retrieveActiveBody().getUnits()) {
+						// Since we're running on the old CFG, we must still
+						// have the statement
+						assert this.containsStmt(u);
+						expiredNodes.add(wrap(u));
+					}
+				}
 			}
 			else if (cd.getDiffType() == DiffType.ADDED) {
 				if (DEBUG)
 					System.out.println("Added class: " + cd.getNewClass().getName());
-				for (SootMethod sm : cd.getNewClass().getMethods())
-					if (sm.isConcrete())
-						for (Unit u : sm.retrieveActiveBody().getUnits()) {
-							UpdatableWrapper<Unit> wrapper = wrap(u);
-							newNodes.add(wrapper);
-							wrapper.setSafepoint();
-							assert newJimpleCFG.containsStmt(u);
-						}
+				for (MethodDiffNode md : cd.getMethodDiffs()) {
+					assert md.getDiffType() == DiffType.ADDED;
+					assert md.getNewMethod() != null;
+					for (Unit u : md.getNewMethod().retrieveActiveBody().getUnits()) {
+						UpdatableWrapper<Unit> wrapper = wrap(u);
+						newNodes.add(wrapper);
+						wrapper.setSafepoint();
+						assert newJimpleCFG.containsStmt(u);
+					}
+				}
 			}
 			else if (cd.getDiffType() == DiffType.CHANGED) {
 				// This class has been changed. All statements in new methods
@@ -139,7 +143,7 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.ADDED)
 							throw new RuntimeException("Invalid diff mode, old method cannot be added");
-						else if (methodDiff == null) {
+						else if (methodDiff == null && cd.getNewClass().declaresMethod(oldMethod.getSubSignature())) {
 							// This is an unchanged method in a modified class.
 							// Fix the wrappers
 							updateUnchangedMethodPointers(oldMethod, Scene.v().getMethod(oldMethod.getSignature()));
