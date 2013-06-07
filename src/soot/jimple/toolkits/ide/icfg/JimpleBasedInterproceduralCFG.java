@@ -210,11 +210,11 @@ public class JimpleBasedInterproceduralCFG implements InterproceduralCFG<Unit,So
 	}
 
 	@Override
-	public Set<Unit> getStartPointsOf(SootMethod m) {
+	public List<Unit> getStartPointsOf(SootMethod m) {
 		if(m.hasActiveBody()) {
 			Body body = m.getActiveBody();
 			DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
-			return new LinkedHashSet<Unit>(unitGraph.getHeads());
+			return unitGraph.getHeads();
 		}
 		return null;
 	}

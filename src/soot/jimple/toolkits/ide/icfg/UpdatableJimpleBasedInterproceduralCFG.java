@@ -5,6 +5,7 @@ import heros.incremental.AbstractUpdatableInterproceduralCFG;
 import heros.incremental.DefaultUpdatableWrapper;
 import heros.incremental.UpdatableInterproceduralCFG;
 import heros.incremental.UpdatableWrapper;
+import heros.solver.CountingThreadPoolExecutor;
 import heros.solver.Pair;
 import heros.util.Utils;
 
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import soot.Local;
 import soot.Scene;
@@ -69,6 +72,10 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		System.out.println("Incremental build done in "
 				+ (System.nanoTime() - beforeSceneDiff) / 1E9 + " seconds.");
 		
+		CountingThreadPoolExecutor executor = new CountingThreadPoolExecutor
+				(1, Runtime.getRuntime().availableProcessors(),
+				30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+
 		// Check for removed classes. All statements in all methods in all
 		// removed classes are automatically expired
 		Set<SootClass> changedClasses = new HashSet<SootClass>();
@@ -136,10 +143,8 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.CHANGED) {
 							// This method has been changed
-							boolean reallyChanged = computeMethodChangeset(newJimpleCFG, oldMethod,
-									methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes);
-							if (DEBUG && reallyChanged)
-								System.out.println("Changed method: " + methodDiff.getNewMethod().getSignature());
+							executor.execute(new ComputeMethodChangesetTask(newJimpleCFG, oldMethod,
+									methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes));
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.ADDED)
 							throw new RuntimeException("Invalid diff mode, old method cannot be added");
@@ -166,6 +171,56 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		}
 		System.out.println("Unchanged method pointers updated in "
 				+ (System.nanoTime() - beforePointerUpdate) / 1E9 + " seconds.");
+		
+		// Wait for the method diff threads to finish and shut down the executor
+		try {
+			executor.awaitCompletion();
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+		executor.shutdown();
+		try {
+			executor.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	private class ComputeMethodChangesetTask implements Runnable {
+
+		private final UpdatableJimpleBasedInterproceduralCFG newCFG;
+		private final SootMethod oldMethod;
+		private final SootMethod newMethod;
+		private final Map<UpdatableWrapper<Unit>, List<UpdatableWrapper<Unit>>> expiredEdges;
+		private final Map<UpdatableWrapper<Unit>, List<UpdatableWrapper<Unit>>> newEdges;
+		private final Set<UpdatableWrapper<Unit>> newNodes;
+		private final Set<UpdatableWrapper<Unit>> expiredNodes;
+		
+		public ComputeMethodChangesetTask
+				(UpdatableJimpleBasedInterproceduralCFG newCFG,
+				SootMethod oldMethod,
+				SootMethod newMethod,
+				Map<UpdatableWrapper<Unit>, List<UpdatableWrapper<Unit>>> expiredEdges,
+				Map<UpdatableWrapper<Unit>, List<UpdatableWrapper<Unit>>> newEdges,
+				Set<UpdatableWrapper<Unit>> newNodes,
+				Set<UpdatableWrapper<Unit>> expiredNodes) {
+			this.newCFG = newCFG;
+			this.oldMethod = oldMethod;
+			this.newMethod = newMethod;
+			this.expiredEdges = expiredEdges;
+			this.newEdges = newEdges;
+			this.newNodes = newNodes;
+			this.expiredNodes = expiredNodes;
+		}
+		
+		@Override
+		public void run() {
+			boolean reallyChanged = computeMethodChangeset(newCFG, oldMethod,
+					newMethod, expiredEdges, newEdges, newNodes, expiredNodes);
+			if (DEBUG && reallyChanged)
+				System.out.println("Changed method: " + newMethod.getSignature());
+		}
+		
 	}
 
 	/**

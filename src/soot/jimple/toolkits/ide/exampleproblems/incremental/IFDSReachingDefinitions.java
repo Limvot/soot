@@ -8,7 +8,6 @@ import heros.incremental.UpdatableInterproceduralCFG;
 import heros.incremental.UpdatableWrapper;
 
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -91,10 +90,8 @@ public class IFDSReachingDefinitions extends DefaultUpdatableJimpleIFDSTabulatio
 								}
 								return Collections.singleton(source);
 							} else {
-								LinkedHashSet<UpdatableReachingDefinition> res = new LinkedHashSet<UpdatableReachingDefinition>();
-								res.add(createReachingDefinition(assignment.getContents().getLeftOp(),
-									Collections.<DefinitionStmt> singleton(assignment.getContents())));
-								return res;
+								return Collections.singleton(createReachingDefinition(assignment.getContents().getLeftOp(),
+										Collections.<DefinitionStmt> singleton(assignment.getContents())));
 							}
 						}
 					};
@@ -150,6 +147,7 @@ public class IFDSReachingDefinitions extends DefaultUpdatableJimpleIFDSTabulatio
 
 					@Override
 					public Set<UpdatableReachingDefinition> computeTargets(UpdatableReachingDefinition source) {
+						assert source.getContents() != null;
 						if (exitStmt.getContents() instanceof ReturnStmt) {
 							ReturnStmt returnStmt = (ReturnStmt) exitStmt.getContents();
 							if (returnStmt.getOp().equivTo(source.getContents().getO1())) {
