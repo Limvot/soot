@@ -71,10 +71,12 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 			System.out.println("Program is unchanged");
 		System.out.println("Incremental build done in "
 				+ (System.nanoTime() - beforeSceneDiff) / 1E9 + " seconds.");
-		
+
+		/*
 		CountingThreadPoolExecutor executor = new CountingThreadPoolExecutor
 				(1, Runtime.getRuntime().availableProcessors(),
 				30, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		*/
 
 		// Check for removed classes. All statements in all methods in all
 		// removed classes are automatically expired
@@ -143,8 +145,14 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.CHANGED) {
 							// This method has been changed
+							boolean reallyChanged = computeMethodChangeset(newJimpleCFG, oldMethod,
+									methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes);
+							if (DEBUG && reallyChanged)
+								System.out.println("Changed method: " + methodDiff.getNewMethod().getSignature());
+							/*
 							executor.execute(new ComputeMethodChangesetTask(newJimpleCFG, oldMethod,
 									methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes));
+							*/
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.ADDED)
 							throw new RuntimeException("Invalid diff mode, old method cannot be added");
@@ -172,6 +180,7 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		System.out.println("Unchanged method pointers updated in "
 				+ (System.nanoTime() - beforePointerUpdate) / 1E9 + " seconds.");
 		
+		/*
 		// Wait for the method diff threads to finish and shut down the executor
 		try {
 			executor.awaitCompletion();
@@ -184,6 +193,7 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
+		*/
 	}
 	
 	private class ComputeMethodChangesetTask implements Runnable {
