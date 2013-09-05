@@ -52,21 +52,6 @@ public class UpdatableReachingDefinition implements UpdatableWrapper<Pair<Value,
 	}
 
 	@Override
-	public Pair<Value, Set<DefinitionStmt>> getPreviousContents() {
-		Set<DefinitionStmt> defs = new HashSet<DefinitionStmt>(this.definitions.size());
-		for (UpdatableWrapper<DefinitionStmt> ds : this.definitions)
-			defs.add(ds.getPreviousContents());
-		return new Pair<Value, Set<DefinitionStmt>>(this.value.getPreviousContents(), defs);
-	}
-
-	@Override
-	public void setSafepoint() {
-		this.value.setSafepoint();
-		for (UpdatableWrapper<DefinitionStmt> ds : this.definitions)
-			ds.setSafepoint();
-	}
-
-	@Override
 	public boolean equals(Object another) {
 		if (super.equals(another))
 			return true;
@@ -87,12 +72,17 @@ public class UpdatableReachingDefinition implements UpdatableWrapper<Pair<Value,
 		
 		return true;
 	}
-
-	@Override
-	public boolean hasPreviousContents() {
-		return this.value.hasPreviousContents();
-	}
 	
+	@Override
+	public int hashCode() {
+		int hashCode = 0;
+		if (this.value != null)
+			hashCode += this.value.hashCode();
+		if (this.definitions != null)
+			hashCode += 31 * this.definitions.hashCode();
+		return hashCode;
+	}
+
 	public Value getValue() {
 		if (value == null)
 			return EMPTY_VALUE;

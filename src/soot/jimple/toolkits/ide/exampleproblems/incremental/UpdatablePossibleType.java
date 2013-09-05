@@ -46,17 +46,6 @@ public class UpdatablePossibleType implements UpdatableWrapper<Pair<Value, Type>
 	}
 
 	@Override
-	public Pair<Value, Type> getPreviousContents() {
-		return new Pair<Value, Type>(this.value.getPreviousContents(), this.type.getPreviousContents());
-	}
-
-	@Override
-	public void setSafepoint() {
-		this.value.setSafepoint();
-		this.type.setSafepoint();
-	}
-
-	@Override
 	public boolean equals(Object another) {
 		if (super.equals(another))
 			return true;
@@ -78,11 +67,6 @@ public class UpdatablePossibleType implements UpdatableWrapper<Pair<Value, Type>
 		return true;
 	}
 
-	@Override
-	public boolean hasPreviousContents() {
-		return this.value.hasPreviousContents();
-	}
-	
 	public Value getValue() {
 		if (value == null)
 			return EMPTY_VALUE;

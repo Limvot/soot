@@ -17,12 +17,13 @@ import soot.toolkits.graph.DirectedGraph;
  */
 public class JimpleBasedBiDiICFG extends JimpleBasedInterproceduralCFG implements BiDiInterproceduralCFG<Unit,SootMethod> {
 
+	@Override
 	public List<Unit> getPredsOf(Unit u) {
 		Body body = unitToOwner.get(u);
 		DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
 		return unitGraph.getPredsOf(u);
 	}
-
+	
 	/**
 	 * Gets all exit nodes that can transfer the control flow to the given
 	 * return site.
@@ -35,10 +36,7 @@ public class JimpleBasedBiDiICFG extends JimpleBasedInterproceduralCFG implement
 		Set<Unit> exitNodes = new HashSet<Unit>(preds.size() * 2);
 		for (Unit pred : preds)
 			for (SootMethod sm : this.getCalleesOfCallAt(pred))
-				if (sm.hasActiveBody())
-					for (Unit u : sm.getActiveBody().getUnits())
-						if (this.isExitStmt(u))
-							exitNodes.add(u);
+				exitNodes.addAll(getEndPointsOf(sm));
 		return exitNodes;
 	}
 

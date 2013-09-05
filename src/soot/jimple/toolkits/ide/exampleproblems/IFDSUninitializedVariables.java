@@ -125,6 +125,10 @@ public class IFDSUninitializedVariables extends DefaultJimpleIFDSTabulationProbl
 
 					@Override
 					public Set<Local> computeTargets(final Local source) {
+						// Dot not map parameters for <clinit> edges
+						if (destinationMethod.getName().equals("<clinit>"))
+							return Collections.emptySet();
+
 						for (Local localArgument : localArguments) {
 							if (source.equivTo(localArgument)) {
 								return Collections.<Local>singleton(destinationMethod.getActiveBody().getParameterLocal(args.indexOf(localArgument)));

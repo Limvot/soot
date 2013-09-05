@@ -85,7 +85,9 @@ public class IFDSReachingDefinitions extends DefaultUpdatableJimpleIFDSTabulatio
 						@Override
 						public Set<UpdatableReachingDefinition> computeTargets(UpdatableReachingDefinition source) {
 							if (!source.equals(zeroValue())) {
-								if (source.getContents().getO1().equivTo(assignment.getContents().getLeftOp())) {
+								UpdatableWrapper<Value> sourceLocal = interproceduralCFG().wrap(source.getContents().getO1());
+								UpdatableWrapper<Value> assignLocal = interproceduralCFG().wrap(assignment.getContents().getLeftOp());
+								if (sourceLocal.equals(assignLocal)) {
 									return Collections.emptySet();
 								}
 								return Collections.singleton(source);

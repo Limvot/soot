@@ -128,6 +128,10 @@ public class IFDSUninitializedVariables extends DefaultUpdatableJimpleIFDSTabula
 					@Override
 					public Set<UpdatableWrapper<Local>> computeTargets
 							(final UpdatableWrapper<Local> source) {
+						// Dot not map parameters for <clinit> edges
+						if (destinationMethod.getContents().getName().equals("<clinit>"))
+							return Collections.emptySet();
+
 						for (UpdatableWrapper<Local> localArgument : localArguments) {
 							if (source.getContents().equivTo(localArgument.getContents())) {
 								return Collections.<UpdatableWrapper<Local>>singleton

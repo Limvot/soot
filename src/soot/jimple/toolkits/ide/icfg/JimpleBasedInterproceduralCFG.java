@@ -221,6 +221,16 @@ public class JimpleBasedInterproceduralCFG implements InterproceduralCFG<Unit,So
 	}
 
 	@Override
+	public List<Unit> getEndPointsOf(SootMethod m) {
+		if(m.hasActiveBody()) {
+			Body body = m.getActiveBody();
+			DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);
+			return unitGraph.getTails();
+		}
+		return null;
+	}
+
+	@Override
 	public boolean isStartPoint(Unit u) {
 		Body body = unitToOwner.get(u);
 		DirectedGraph<Unit> unitGraph = getOrCreateUnitGraph(body);		

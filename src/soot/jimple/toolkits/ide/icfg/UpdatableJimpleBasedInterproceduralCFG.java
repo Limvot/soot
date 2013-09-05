@@ -5,7 +5,6 @@ import heros.incremental.AbstractUpdatableInterproceduralCFG;
 import heros.incremental.DefaultUpdatableWrapper;
 import heros.incremental.UpdatableInterproceduralCFG;
 import heros.incremental.UpdatableWrapper;
-import heros.solver.CountingThreadPoolExecutor;
 import heros.solver.Pair;
 import heros.util.Utils;
 
@@ -17,14 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import soot.Local;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
+import soot.jimple.Stmt;
 import soot.jimple.toolkits.ide.icfg.SceneDiff.ClassDiffNode;
 import soot.jimple.toolkits.ide.icfg.SceneDiff.DiffType;
 import soot.jimple.toolkits.ide.icfg.SceneDiff.MethodDiffNode;
@@ -34,6 +32,7 @@ import soot.util.Chain;
 public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInterproceduralCFG<Unit,SootMethod> {
 
 	private final static boolean DEBUG = true;
+	private boolean quickDiff = false;
 	
 	protected final SceneDiff sceneDiff = new SceneDiff();
 	
@@ -106,7 +105,6 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 					for (Unit u : md.getNewMethod().retrieveActiveBody().getUnits()) {
 						UpdatableWrapper<Unit> wrapper = wrap(u);
 						newNodes.add(wrapper);
-						wrapper.setSafepoint();
 						assert newJimpleCFG.containsStmt(u);
 					}
 				}
@@ -123,7 +121,6 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 							for (Unit u : newMethod.retrieveActiveBody().getUnits()) {
 								UpdatableWrapper<Unit> wrapper = wrap(u);
 								newNodes.add(wrapper);
-								wrapper.setSafepoint();
 								assert newJimpleCFG.containsStmt(u);
 							}
 						}
@@ -145,14 +142,20 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.CHANGED) {
 							// This method has been changed
-							boolean reallyChanged = computeMethodChangeset(newJimpleCFG, oldMethod,
-									methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes);
-							if (DEBUG && reallyChanged)
-								System.out.println("Changed method: " + methodDiff.getNewMethod().getSignature());
-							/*
-							executor.execute(new ComputeMethodChangesetTask(newJimpleCFG, oldMethod,
-									methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes));
-							*/
+							if (quickDiff) {
+								quickDiffMethod(newJimpleCFG, oldMethod, methodDiff.getNewMethod(),
+										expiredEdges, newEdges, newNodes, expiredNodes);
+							}
+							else {
+								boolean reallyChanged = computeMethodChangeset(newJimpleCFG, oldMethod,
+										methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes);
+								if (DEBUG && reallyChanged)
+									System.out.println("Changed method: " + methodDiff.getNewMethod().getSignature());
+								/*
+								executor.execute(new ComputeMethodChangesetTask(newJimpleCFG, oldMethod,
+										methodDiff.getNewMethod(), expiredEdges, newEdges, newNodes, expiredNodes));
+								*/
+							}
 						}
 						else if (methodDiff != null && methodDiff.getDiffType() == DiffType.ADDED)
 							throw new RuntimeException("Invalid diff mode, old method cannot be added");
@@ -196,6 +199,59 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		*/
 	}
 	
+	private void quickDiffMethod(
+			UpdatableJimpleBasedInterproceduralCFG newJimpleCFG,
+			SootMethod oldMethod,
+			SootMethod newMethod,
+			Map<UpdatableWrapper<Unit>, List<UpdatableWrapper<Unit>>> expiredEdges,
+			Map<UpdatableWrapper<Unit>, List<UpdatableWrapper<Unit>>> newEdges,
+			Set<UpdatableWrapper<Unit>> newNodes,
+			Set<UpdatableWrapper<Unit>> expiredNodes) {
+		long beforeQuickDiff = System.nanoTime();
+		
+		List<UpdatableWrapper<Unit>> oldSps = getStartPointsOf(wrap(oldMethod));
+		List<UpdatableWrapper<Unit>> newSps = newJimpleCFG.getStartPointsOf(newJimpleCFG.wrap(newMethod));
+
+		// We need to match the references of the start points
+		Map<Unit, Unit> refChanges = new HashMap<Unit, Unit>();
+		boolean hasSeed = true;
+		for (UpdatableWrapper<Unit> spOld : oldSps) {
+			boolean found = false;
+			for (UpdatableWrapper<Unit> spNew : newSps)
+				if (spOld.getContents().toString().equals(spNew.getContents().toString())) {
+					refChanges.put(spOld.getContents(), spNew.getContents());
+					found = true;
+					break;
+				}
+			
+			// If we cannot match the start points, there is no seed in the
+			// current method
+			if (!found)
+				hasSeed = false;
+		}
+		
+		for (Unit oldUnit : oldMethod.getActiveBody().getUnits()) {
+			UpdatableWrapper<Unit> wOldUnit = wrap(oldUnit);
+			if (!hasSeed || !oldSps.contains(wOldUnit))
+				expiredNodes.add(wOldUnit);
+			for (UpdatableWrapper<Unit> succ : getSuccsOf(wOldUnit))
+				Utils.addElementToMapList(expiredEdges, wOldUnit, succ);
+		}
+		for (Unit newUnit : newMethod.getActiveBody().getUnits()) {
+			UpdatableWrapper<Unit> wNewUnit = newJimpleCFG.wrap(newUnit);
+			if (!hasSeed || !newSps.contains(wNewUnit))
+				newNodes.add(wNewUnit);
+			for (UpdatableWrapper<Unit> succ : newJimpleCFG.getSuccsOf(wNewUnit))
+				Utils.addElementToMapList(newEdges, wNewUnit, succ);
+		}
+		
+		for (Entry<Unit, Unit> entry : refChanges.entrySet())
+			notifyReferenceChanged(entry.getKey(), entry.getValue());
+				
+		System.out.println("Quick diff took " + (System.nanoTime() - beforeQuickDiff) / 1E9
+				+ " seconds.");
+	}
+
 	private class ComputeMethodChangesetTask implements Runnable {
 
 		private final UpdatableJimpleBasedInterproceduralCFG newCFG;
@@ -275,7 +331,10 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		while (uold != null && unew != null) {
 			assert uold.toString().contains("tmp$") || uold.toString().contains("access$")
 				|| uold.toString().equals(unew.toString());
-			notifyReferenceChanged(uold, unew);
+			if (uold instanceof Stmt && unew instanceof Stmt)
+				updateReferences((Stmt) uold, (Stmt) unew);
+			else
+				notifyReferenceChanged(uold, unew);
 			uold = oldChain.getSuccOf(uold);
 			unew = newChain.getSuccOf(unew);
 		}
@@ -474,12 +533,23 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 			}
 		}
 
-		for (Entry<Unit,Unit> entry : refChanges.entrySet()) {
-			notifyReferenceChanged(entry.getKey(), entry.getValue());
-			assert this.containsStmt(entry.getKey());
-			assert newCFG.containsStmt(entry.getValue());
-		}
+		for (Entry<Unit,Unit> entry : refChanges.entrySet())
+			updateReferences(entry.getKey(), entry.getValue());
 		return reallyChanged;
+	}
+
+	private void updateReferences(Unit oldUnit, Unit newUnit) {
+		notifyReferenceChanged(oldUnit, newUnit);
+
+		Stmt oldStmt = (Stmt) oldUnit;
+		Stmt newStmt = (Stmt) newUnit;
+		if (oldStmt.containsFieldRef())
+			notifyReferenceChanged(oldStmt.getFieldRef(), newStmt.getFieldRef());
+		if (oldStmt.containsArrayRef())
+			notifyReferenceChanged(oldStmt.getArrayRef(), newStmt.getArrayRef());
+		
+		assert this.containsStmt(oldUnit);
+//		assert newCFG.containsStmt(newUnit);	
 	}
 
 	private UpdatableWrapper<Unit> findStatement
@@ -533,6 +603,26 @@ public class UpdatableJimpleBasedInterproceduralCFG extends AbstractUpdatableInt
 		UpdatableWrapper<SootMethod> method = super.getMethodOf(n); 
 		assert this.sceneDiff.containsReachableMethod(method.getContents());
 		return method;
+	}
+	
+	/**
+	 * Sets whether quick diffing shall be used. Quick diffing only scans for
+	 * structural changes when updating the CFG and then exchanges all
+	 * statements in methods that are not preserved as-is.
+	 * @param quickDiff True if quick diffing shall be enabled, otherwise false.
+	 */
+	public void setQuickDiff(boolean quickDiff) {
+		this.quickDiff = quickDiff;
+	}
+	
+	/**
+	 * Gets whether quick diffing is used.  Quick diffing only scans for
+	 * structural changes when updating the CFG and then exchanges all
+	 * statements in methods that are not preserved as-is.
+	 * @return True if quick diffing is enabled, otherwise false.
+	 */
+	public boolean getQuickDiff() {
+		return this.quickDiff;
 	}
 
 }
