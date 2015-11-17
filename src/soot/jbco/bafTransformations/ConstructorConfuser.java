@@ -112,7 +112,7 @@ public class ConstructorConfuser extends BodyTransformer implements
           
             Unit pop = Baf.v().newPopInst(RefType.v());
             units.add(pop);
-            units.add(prev.clone());
+            units.add((Unit) prev.clone());
             b.getTraps().add(Baf.v().newTrap(ThrowSet.getRandomThrowable(), ifinst, sii, pop));
             if (Rand.getInt() % 2 == 0) {
               pop = (Unit)pop.clone();
