@@ -4,6 +4,9 @@ plugins {
 
 mainClassName = 'soot.Main'
 
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
+
 jar {
     manifest {
         attributes('Main-Class': mainClassName)
