@@ -195,6 +195,7 @@ public class Main {
             }
             
             
+            System.err.println(System.getProperty("java.class.path"));
             PackManager.v().runPacks();
             if(!Options.v().oaat())
             	PackManager.v().writeOutput();
